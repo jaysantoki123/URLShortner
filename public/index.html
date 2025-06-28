@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>URL Shortener</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      background-color: #333;
+      color: #000;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+
+    h1 {
+      text-align: center;
+      color: #222;
+    }
+
+    form {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input[type="url"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #28a745;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    .text-center {
+      text-align: center;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>URL Shortener</h1>
+    <form id="shortener-form" method="POST">
+      <label for="url">Enter URL:</label>
+      <input type="url" id="url" name="url" placeholder="https://example.com" required>
+
+      <label for="shortenCode">Enter Short Code:</label>
+      <input type="text" id="shortenCode" name="shortenCode" placeholder="e.g. mylink123" required>
+
+      <button type="submit">Shorten URL</button>
+    </form>
+
+    <h1 class="text-center">Shortened URLs</h1>
+    <ul id="shorted-urls" style="list-style: none; text-align: center;"></ul>
+  </div>
+
+  <script>
+
+    let isUpdateMode = true;
+    let originalShortCode = null;
+
+    const fetchShortedURL = async () => {
+      try {
+        const response = await fetch('/links');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const links = await response.json();
+        console.log('Fetched data:', links);
+        const list = document.getElementById('shorted-urls');
+        list.innerHTML = '';
+
+        for (const [shortenCode, url] of Object.entries(links)) {
+          const listItem = document.createElement('li');
+          listItem.setAttribute('style', 'margin-top: 10px;');
+          const truncateURL = url.length >= 30 ? `${url.slice(0, 30)}...` : url
+          listItem.innerHTML = `<a href="${shortenCode}" target="_blank">${shortenCode}</a> - ${truncateURL}" 
+          <button class='delete' style="background-color:#C41E3A;width:auto;height:auto;font-size:15px;padding-top:5px;padding-bottom:5px" type="button">Delete</button> 
+          <button class='update' style="background-color:#000080;width:auto;height:auto;font-size:15px;padding-top:5px;padding-bottom:5px" type="button">Update</button> `;
+
+          listItem.querySelector('.delete').addEventListener('click', async () => {
+            try {
+              const response = await fetch(`/delete/${shortenCode}`, {
+                method: 'DELETE',
+              });
+              if (response.ok) {
+                fetchShortedURL();
+              } else {
+                const errorData = await response.json();
+                console.error('Error in deleting URL:', errorData.error);
+              }
+            } catch (err) {
+              console.error('Error in deleting URL:', err);
+              alert('Network error. Please try again later.');
+            }
+          })
+
+          listItem.querySelector('.update').addEventListener('click', () => {
+            document.getElementById('url').value = url;
+            document.getElementById('shortenCode').value = shortenCode;
+            isUpdateMode = true;
+            originalShortCode = shortenCode;
+
+            const submitBtn = document.querySelector('#shortener-form button');
+            submitBtn.textContent = 'Update URL';
+            submitBtn.style.backgroundColor = '#007BFF';
+          });
+
+          list.appendChild(listItem);
+        }
+      } catch (error) {
+        console.error('Error fetching shortened URLs:', error);
+      }
+    };
+
+
+    document.getElementById('shortener-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const url = formData.get('url');
+      const shortenCode = formData.get('shortenCode');
+
+      const endpoint = isUpdateMode ? `/update/${originalShortCode}` : '/shorten';
+      const method = isUpdateMode ? 'PUT' : 'POST';
+
+      console.log('URL:', url);
+      console.log('Shorten Code:', shortenCode);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url, shortenCode })
+        });
+
+        
+
+        if (response.ok) {
+          alert(isUpdateMode ? 'URL updated successfully!' : 'URL shortened successfully!');
+          fetchShortedURL();
+          e.target.reset();
+          isUpdateMode = false;
+          originalShortCode = null;
+          const submitBtn = document.querySelector('#shortener-form button');
+          submitBtn.textContent = 'Shorten URL';
+          submitBtn.style.backgroundColor = '#28a745';
+        } else {
+          const errorData = await response.json();
+          alert('Error: ' + errorData.error);
+        }
+      } catch (error) {
+        console.error('Request failed:', error);
+        alert('Network error. Please try again later.');
+      }
+    });
+
+    fetchShortedURL();
+  </script>
+</body>
+
+</html>
