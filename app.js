@@ -2,7 +2,7 @@ import { createServer } from 'http';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import crypto from 'crypto';
-const port = 3000;
+const PORT = 3002;
 const Data_File = join('Data', 'links.json');
 
 const loadLinks = async () => {
@@ -136,7 +136,8 @@ const server = createServer(async (req, res) => {
 
 })
 
-server.listen(port, () => {
+server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${port}`);
 })
 
+ 
